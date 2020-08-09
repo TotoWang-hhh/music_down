@@ -15,18 +15,20 @@
 ## 正在完成的更改
  - [x] 修复BUG
  - [x] 调整路径
- - [x] 脱离黑底白字（可视化界面）
+ - [] 脱离黑底白字（可视化界面）
 
 ## 上代码
 
 ```python
-#-*- coding:utf-8 -*-# author:**ZLH**
-# datetime:2019/8/2 16:47
-# software: PyCharm
- 
+#导入库
 import requests
 import json
 import easygui
+import tkinter as tk
+from tkinter import ttk
+
+
+srd=[]#SRD=Seach Result Display
 
 headers = {
     'Host': 'c.y.qq.com',
@@ -34,39 +36,20 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 '
     'Safari/537.36 '
 }
+
 def douqq_post(mid):
-        """
+    """
     返回歌曲下载url
     :param mid:歌曲mid
     :return: 字典
     """
-        post_url = 'http://www.douqq.com/qqmusic/qqapi.php'
-        data = {'mid': mid}
-        res = requests.post(post_url, data=data)
-        get_json = json.loads(res.text)
-        return eval(get_json)
- 
- 
-def download_file(src, file_path):
-        """
-    歌曲下载
-    :param src: 下载链接
-    :param file_path: 存储路径
-    :return: 文件路径
-    """
-        r = requests.get(src, stream=True)
-        f = open(file_path, "wb")
-        for chunk in r.iter_content(chunk_size=512):
-            if chunk:
-                f.write(chunk)
-        return file_path
- 
-def choice_download(dic):
-        src = dic['m4a']
-        postfix = '.m4a'
-        return postfix, src.replace('\/\/', '//').replace('\/', '/')
- 
-def find_song(word):
+    post_url = 'http://www.douqq.com/qqmusic/qqapi.php'
+    data = {'mid': mid}
+    res = requests.post(post_url, data=data)
+    get_json = json.loads(res.text)
+    return eval(get_json)
+
+def find_song(word,*args):
         """
     查找歌曲
     :param word: 歌曲名
@@ -84,40 +67,85 @@ def find_song(word):
             i = 1
             for song in jsons:
                 # print(i, ':' + song['songname'], '---', song['singer'][0]['name'], song['songmid'], song['media_mid'])
-                print(i, ':' + song['songname'], '---', song['singer'][0]['name'])
+                srd.append((i, ':' + song['songname'], '---', song['singer'][0]['name']))#SRD=Seach Result Display
                 songmid.append(song['songmid'])
                 media_mid.append(song['media_mid'])
                 song_singer.append(song['singer'][0]['name'])
-                i = i + 1
-            select = int(input("请输入您的选择:")) - 1
+                i=i + 1
+                result_list.insert('','end',values=[song['songname'],song['singer'][0]['name']])
+            select = result_list.selection()[0]
+            select=int(filter(str.isdigit,select))
+            print(select)
+            print(type(select))
+            print(select)
+            print(type(select))
+            select=int(select.split(',')[0].strip('('))
+            print(select)
             return songmid[select], song_singer[select]
         except Exception as e:
-            print(f'歌曲查找有误：{e}')
+            print(f'歌曲查找函数发生致命的错误-Stop Code:{e}')
             return None
- 
- 
-if __name__ == '__main__':
-# songname = '叹云兮'
-    while True:
-        songname = input("请输入音乐名称:")
-        song_mid, singer = find_song(songname)
-        dic = douqq_post(song_mid)
-        # {
-        # "mid":"004FjJo32TISsY",
-        # "m4a":"http:\/\/dl.stream.qqmusic.qq.com\/C400004FjJo32TISsY.m4a?guid=2095717240&vkey=0B599CA74745F8A27A33A1FED2C7F6925FFFE8ED040569FB3540EB011FE9C5A3D7F36EAE4BDBD450F25076A23EBAF95A5ECB54B22C5E8F10&uin=0&fromtag=38",
-        # "mp3_l":"http:\/\/dl.stream.qqmusic.qq.com\/M500004FjJo32TISsY.mp3?guid=2095717240&vkey=0B599CA74745F8A27A33A1FED2C7F6925FFFE8ED040569FB3540EB011FE9C5A3D7F36EAE4BDBD450F25076A23EBAF95A5ECB54B22C5E8F10&uin=0&fromtag=53",
-        # "mp3_h":media_mid"http:\/\/dl.stream.qqmusic.qq.com\/M800004FjJo32TISsY.mp3?guid=2095717240&vkey=0B599CA74745F8A27A33A1FED2C7F6925FFFE8ED040569FB3540EB011FE9C5A3D7F36EAE4BDBD450F25076A23EBAF95A5ECB54B22C5E8F10&uin=0&fromtag=53",
-        # "ape":"http:\/\/dl.stream.qqmusic.qq.com\/A000004FjJo32TISsY.ape?guid=2095717240&vkey=0B599CA74745F8A27A33A1FED2C7F6925FFFE8ED040569FB3540EB011FE9C5A3D7F36EAE4BDBD450F25076A23EBAF95A5ECB54B22C5E8F10&uin=0&fromtag=53",
-        # "flac":"http:\/\/dl.stream.qqmusic.qq.com\/F000004FjJo32TISsY.flac?guid=2095717240&vkey=0B599CA74745F8A27A33A1FED2C7F6925FFFE8ED040569FB3540EB011FE9C5A3D7F36EAE4BDBD450F25076A23EBAF95A5ECB54B22C5E8F10&uin=0&fromtag=53",
-        # "pic":"https:\/\/y.gtimg.cn\/music\/photo_new\/T002R300x300M000003NZyTh4eMMsp.jpg?max_age=2592000"
-        # }
-        # print('mid:'+dic['mid'])
-        postfix, url = choice_download(dic)
-        save_path = easygui.filesavebox(title='保存文件')
-        download_file(url, save_path + postfix)
-        con = input('是否重启程序以下载另一首音乐: y/n ')
-        if con == 'n':
-            break
+
+def download_file(src, file_path):
+        """
+    歌曲下载
+    :param src: 下载链接
+    :param file_path: 存储路径
+    :return: 文件路径
+    """
+        r = requests.get(src, stream=True)
+        f = open(file_path, "wb")
+        for chunk in r.iter_content(chunk_size=512):
+            if chunk:
+                f.write(chunk)
+        return file_path
+
+def choice_download(dic):
+        src = dic['m4a']
+        postfix='.m4a'
+        return postfix, src.replace('\/\/', '//').replace('\/', '/')
+
+def start():
+    global song_mid,singer
+    songname=name_enterbox.get()
+    song_mid, singer = find_song(songname)
+
+def down(event):
+    global dic,postfix,url
+    print(result_list.selection())
+    print(type(result_list.selection()[0]))
+    select=filter(str.isdigit,result_list.selection()[0])
+    print(select)
+    print(type(select))
+    print(int(select))
+    string.set(result_list.selection()[0])
+    string.set(result_list.focus())
+    dic = douqq_post(song_mid)
+    postfix, url = choice_download(dic)
+    save_path = easygui.filesavebox(title='保存文件',default=songname+".m4a")
+    download_file(url, save_path)
+
+window=tk.Tk()
+window.geometry('800x450')
+window.title('音乐下载器')
+#名称输入
+enter_name_tip=tk.Label(window,text='请输入音乐名称')
+enter_name_tip.place(x=10,y=10)
+name_enterbox=tk.Entry(window,bd=2,show=None,width=70)
+name_enterbox.place(x=10,y=30)
+#搜索按钮
+search_btn=tk.Button(window,text='搜索',bd=3,width=10,height=2,command=start)
+search_btn.place(x=10,y=60)
+#搜索结果列表
+string = tk.StringVar()
+title=['1','2']
+result_list=ttk.Treeview(window,columns=title)
+result_list.place(x=10,y=120)
+result_list.heading('1',text='名称')
+result_list.heading('2',text='艺人')
+result_list.bind("<ButtonRelease-1>",down)
+#主循环
+window.mainloop()
 ```
 原版来自吾爱破解论坛，这里修改了一些内容（详见“修改内容”）。
 [原版链接](https://www.52pojie.cn/thread-1008496-1-1.html)
