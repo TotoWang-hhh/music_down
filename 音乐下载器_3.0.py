@@ -4,6 +4,7 @@ import json
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as msgbox
+import tkinter.filedialog as filebox
 from tkinter import *
 
 def getPos(value,in_list):
@@ -40,7 +41,7 @@ def douqq_post(mid):
     return eval(get_json)
 
 def find_song(word):
-    global songNames,songmid,media_mid,songsinger
+    global songNames,songmid,media_mid
     delButton(tree)
     """
     查找歌曲
@@ -78,6 +79,12 @@ def select():
     print(select)
     print(type(select))
     #return songmid[select-1], song_singer[select-1]
+    song_mid=songmid[select-1]
+    song_name=songNames[select-1]
+    dic=douqq_post(song_mid)
+    postfix, url=choice_download(dic)
+    save_path=filebox.asksaveasfilename(title='保存音乐',initialfile=song_name+".m4a",filetypes=[('M4A音频文件','.m4a')])
+    download_file(url, save_path)
 
 def download_file(src, file_path):
         """
@@ -117,7 +124,7 @@ searchPart.pack(fill=tk.X)
 
 tree=ttk.Treeview(win,show="headings")#表格
 tree["columns"]=("序号","歌曲","艺人")
-tree.column("序号",width=25)
+tree.column("序号",width=20)
 tree.column("歌曲",width=100) #表示列,不显示
 tree.column("艺人",width=70)
 tree.heading("序号",text="序号") 
@@ -129,8 +136,5 @@ ttk.Button(text='下载',command=select).pack(fill=tk.X)
 
 win.mainloop()
 
-def down():
-    dic = douqq_post(song_mid)
-    postfix, url = choice_download(dic)
-    save_path = easygui.filesavebox(title='保存文件',default="../"+songname+".m4a")
-    download_file(url, save_path)
+#def down():
+
