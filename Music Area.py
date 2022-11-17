@@ -266,8 +266,34 @@ def play():
         f=open(save_path,'wb')
         f.write(m)
         f.close()
-        win_print('下载完成，启动播放器')
-        os.system("cache.mp3")
+    infres=requests.get(url="https://cloudmusic-api.txm.world/song/detail?ids="+mid)
+    infjson=infres.json()
+    inf=infjson['songs'][0]
+    ars=''
+    if inf['publishTime']!=0:#如果年份未知，则API返回0，程序会将年份误标为1970，故加上判断
+        pubyear=datetime.datetime.fromtimestamp(inf['publishTime']/1000.0).strftime('%Y')
+    else:
+        pubyear=''
+    for i in inf['ar']:
+        ars+=i['name']+';'
+    ars=ars[0:len(ars)-1]
+    res=requests.get(inf['al']['picUrl'])
+    img=res.content
+    #编辑信息
+    audiofile = eyed3.load(save_path)
+    audiofile.initTag()
+    audiofile.tag.title = inf['name']
+    audiofile.tag.artist = ars
+    audiofile.tag.album = inf['al']['name']
+    imgf=open("./cache.jpg",'wb')  # 封面
+    imgf.write(img)
+    imgf.close()
+    audiofile.tag.recording_date = str(pubyear)  # 年份
+    audiofile.tag.save()
+    set_wait(False)
+    win_print('下载完成，启动播放器')
+    set_wait(True,player=True)
+    os.popen('ma_player.exe')
     set_wait(False)
 
 def copyid():
@@ -320,7 +346,7 @@ def search(event=''):
     # song_mid, singer = find_song(songname)
     find_song(songname)
 
-def set_wait(state):
+def set_wait(state,player=False):
     if state:
         global root,mask
         mask=tk.Tk()
@@ -328,7 +354,10 @@ def set_wait(state):
         mask.geometry(str(root.winfo_width())+'x'+str(root.winfo_height())+'+'+str(root.winfo_x()+10)+'+'+str(root.winfo_y()+30))
         mask.configure(background='#000000')
         mask.attributes("-alpha",0.7)
-        tk.Label(mask,text='请稍候',font=('微软雅黑',30),bg='#000000',fg='#FFFFFF').pack(pady=150)
+        if player:
+            tk.Label(mask,text='请关闭播放器后操作',font=('微软雅黑',20),bg='#000000',fg='#FFFFFF').pack(pady=150)
+        else:
+            tk.Label(mask,text='请稍候',font=('微软雅黑',30),bg='#000000',fg='#FFFFFF').pack(pady=150)
         root.update()
         mask.update()
     else:
@@ -350,7 +379,7 @@ def win_print(word):
 root = tk.Tk()
 root.title('音乐地带')
 #win.iconbitmap("./icon.ico")
-root.minsize(600,500)
+root.minsize(600,510)
 #root.geometry('400x600')
 root.iconbitmap("./icon.ico")
 
@@ -441,7 +470,7 @@ nb.add(aroot, text='关于')
 
 #tk.Label(awin,text='',font=('微软雅黑',15)).pack(padx=25)
 tk.Label(awin,text='音乐地带',font=('微软雅黑',25)).pack(padx=25,pady=15)
-tk.Label(awin,text='版本：5.1.0').pack(padx=25)
+tk.Label(awin,text='版本：5.2.0').pack(padx=25)
 tk.Label(awin,text='2022 By 真_人工智障').pack(padx=25)
 
 ttk.Button(awin, text='我的官网', command=lambda: webbrowser.open("http://rgzz.great-site.net/")).pack(padx=25,pady=15)
@@ -449,9 +478,10 @@ ttk.Button(awin, text='我的官网', command=lambda: webbrowser.open("http://rg
 ttk.Separator(awin).pack(fill=tk.X,padx=50,pady=10)
 
 tk.Label(awin,text='鸣谢',font=('微软雅黑',15)).pack(padx=25,pady=5)
-tk.Label(awin,text='Vercel').pack(padx=25)
-tk.Label(awin,text='愿为西南风').pack(padx=25)
-tk.Label(awin,text='网易云音乐 NodeJS 版 API').pack(padx=25)
+tk.Button(awin,text='Vercel — API部署',bd=0,command=lambda:webbrowser.open("https://www.vercel.com")).pack(padx=25)
+tk.Button(awin,text='Heymu — 播放器',bd=0,command=lambda:webbrowser.open("https://teameow.xyz/")).pack(padx=25)
+tk.Button(awin,text='AXIOMXS — 二级域名',bd=0,command=lambda:msgbox.showinfo('关于他','AXIOMXS，官网已删，网名频繁修改\n为尊重隐私，故不提供联系方式')).pack(padx=25)
+tk.Button(awin,text='网易云音乐 NodeJS 版 API — 一切之本',bd=0,command=lambda:webbrowser.open("https://github.com/Binaryify/NeteaseCloudMusicApi")).pack(padx=25)
 
 ttk.Separator(awin).pack(fill=tk.X,padx=50,pady=10)
 
@@ -464,7 +494,7 @@ tk.Label(awin,text='作者承诺软件无强制性收费且开源，若您为购
 nb.pack(fill=tk.BOTH,expand=True)
 
 win_print('音乐地带')
-win_print('版本：5.1.0')
+win_print('版本：5.2.0')
 win_print('作者：真_人工智障')
 win_print('====================')
 win_print('程序启动完成')
