@@ -66,6 +66,7 @@ import threading
 from ctypes import *
 import datetime,time
 import eyed3
+from eyed3.id3.frames import ImageFrame
 import win32clipboard
 
 
@@ -327,6 +328,9 @@ def down():
     ars=ars[0:len(ars)-1]
     res=requests.get(inf['al']['picUrl'])
     img=res.content
+    f=open("./cache.jpg",'wb')
+    f.write(img)
+    f.close()
     if murl==None:
         win_print(mname+' is not able to download or play on Netease CloudMusic')
         msgbox.showerror('Not Able to Download or Play',mname+' is not able to download or play on Netease CloudMusic')
@@ -342,9 +346,9 @@ def down():
         audiofile.tag.title = inf['name']
         audiofile.tag.artist = ars
         audiofile.tag.album = inf['al']['name']
-        audiofile.tag.images.set(type_=3,img_data=img,mime_type='image/jpeg')  # 封面
+        audiofile.tag.images.set(ImageFrame.FRONT_COVER, open('cache.jpg','rb').read(), 'image/jpeg')
         audiofile.tag.recording_date = str(pubyear)  # 年份
-        audiofile.tag.save()
+        audiofile.tag.save(version=eyed3.id3.ID3_V2_3)
     set_wait(False)
 
 def play():
@@ -487,11 +491,6 @@ def json2treeview(tree, parent, node):#感谢来自简书的WangLane，原链接
             tmp = str(item)
             tree.insert(parent, 'end', text=tmp, values=(str(value).replace("'", '"'), type(value).__name__))
 
-def search(event=''):
-    songname = nameEnter.get()
-    # song_mid, singer = find_song(songname)
-    find_song(songname)
-
 def win_print(word):
     global consle
     console['state']='normal'
@@ -500,6 +499,53 @@ def win_print(word):
     console.see(tk.END)
     console['state']='disabled'
     win.update()
+
+def compare_ver(ver1, ver2):
+    """
+    传入不带英文的版本号,特殊情况："10.12.2.6.5">"10.12.2.6"
+    :param ver1: 版本号1
+    :param ver2: 版本号2
+    :return: ver1< = >ver2返回-1/0/1
+    """
+    list1 = str(ver1).split(".")
+    list2 = str(ver2).split(".")
+    #print(list1)
+    #print(list2)
+    # 循环次数为短的列表的len
+    for i in range(len(list1)) if len(list1) < len(list2) else range(len(list2)):
+        if int(list1[i]) == int(list2[i]):
+            pass
+        elif int(list1[i]) < int(list2[i]):
+            return -1
+        else:
+            return 1
+    # 循环结束，哪个列表长哪个版本号高
+    if len(list1) == len(list2):
+        return 0
+    elif len(list1) < len(list2):
+        return -1
+    else:
+        return 1
+
+def chkupd():
+    global nowver,newver
+    nowver='5.3.1'
+    res=requests.get("https://api.github.com/repos/totowang-hhh/music_down/releases/latest", verify=False) #该站SSL无效
+    json=res.json()
+    #print(json)
+    newver=json['tag_name'].replace('v','')
+    if compare_ver(nowver,newver)==-1:
+        return True
+    else:
+        return False
+
+def chkupdui(start=False):
+    if chkupd():
+        if bool(msgbox.askyesno('Update Avaliable','This version ('+nowver+') < the newest version('+newver+'), \nSo there may an update avaliable. Would you update the software?')):
+            webbrowser.open("http://www.github.com/totowang-hhh/music_down/releases/latest")
+    else:
+        if not start:
+            msgbox.showinfo('Congratulations!','The version is the newest')
 
 
 btnpt=tk.Frame(root)
@@ -516,13 +562,13 @@ win=tk.Frame(nb)
 nb.add(win, text='Search')
 
 searchPart = tk.Frame(win)
-ttk.Button(searchPart, text='Search', command=search, width=12).pack(side=tk.RIGHT, fill=tk.Y)
+ttk.Button(searchPart, text='搜索', command=lambda:find_song(nameEnter.get()), width=12).pack(side=tk.RIGHT, fill=tk.Y)
 nameEnter = ttk.Entry(searchPart)
 nameEnter.pack(fill=tk.X)
 
 searchPart.pack(fill=tk.BOTH)
 
-nameEnter.bind('<Return>', search)
+nameEnter.bind('<Return>', lambda event:find_song(nameEnter.get()))
 
 tree = ttk.Treeview(win, show="headings")  # 表格
 tree["columns"] = ("序号", "歌曲", "艺人","歌曲ID")
@@ -669,7 +715,7 @@ nb.add(aroot, text='About')
 
 #tk.Label(awin,text='',font=('微软雅黑',15)).pack(padx=25)
 tk.Label(awin,text='Music Area',font=('微软雅黑',25)).pack(padx=25,pady=15)
-tk.Label(awin,text='Ver. 5.3.0   Player: 0.1.0').pack(padx=25)
+tk.Button(awin,text='Ver 5.3.1   Player 0.1.1',bd=0,command=chkupdui).pack(padx=25)
 tk.Label(awin,text='2022 By rgzz666').pack(padx=25)
 
 ttk.Button(awin, text='My Site (Chinese)', command=lambda: webbrowser.open("http://rgzz.great-site.net/")).pack(padx=25,pady=15)
