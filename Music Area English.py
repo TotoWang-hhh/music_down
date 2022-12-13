@@ -337,16 +337,13 @@ def down():
     else:
         res=requests.get(url=murl)
         m=res.content
-        f=open(save_path,'wb')
-        f.write(m)
-        f.close()
         #编辑信息
         audiofile = eyed3.load(save_path)
         audiofile.initTag()
         audiofile.tag.title = inf['name']
         audiofile.tag.artist = ars
         audiofile.tag.album = inf['al']['name']
-        audiofile.tag.images.set(ImageFrame.FRONT_COVER, open('cache.jpg','rb').read(), 'image/jpeg')
+        audiofile.tag.images.set(ImageFrame.FRONT_COVER, img, 'image/jpeg')
         audiofile.tag.recording_date = str(pubyear)  # 年份
         audiofile.tag.save(version=eyed3.id3.ID3_V2_3)
     set_wait(False)
@@ -562,7 +559,7 @@ win=tk.Frame(nb)
 nb.add(win, text='Search')
 
 searchPart = tk.Frame(win)
-ttk.Button(searchPart, text='搜索', command=lambda:find_song(nameEnter.get()), width=12).pack(side=tk.RIGHT, fill=tk.Y)
+ttk.Button(searchPart, text='Search', command=lambda:find_song(nameEnter.get()), width=12).pack(side=tk.RIGHT, fill=tk.Y)
 nameEnter = ttk.Entry(searchPart)
 nameEnter.pack(fill=tk.X)
 
@@ -686,7 +683,7 @@ smnameEnter.pack(fill=tk.X)
 
 smsearchPart.pack(fill=tk.BOTH)
 
-nameEnter.bind('<Return>', lambda event:get_style_music(smnameEnter.get()))
+smnameEnter.bind('<Return>', lambda event:get_style_music(smnameEnter.get()))
 
 smtree = ttk.Treeview(smwin, show="headings")  # 表格
 smtree["columns"] = ("序号", "歌曲", "艺人","歌曲ID")
@@ -715,10 +712,11 @@ nb.add(aroot, text='About')
 
 #tk.Label(awin,text='',font=('微软雅黑',15)).pack(padx=25)
 tk.Label(awin,text='Music Area',font=('微软雅黑',25)).pack(padx=25,pady=15)
-tk.Button(awin,text='Ver 5.3.1   Player 0.1.1',bd=0,command=chkupdui).pack(padx=25)
+tk.Button(awin,text='Ver 5.3.1 (532001)   Player 0.1.1',bd=0,command=chkupdui).pack(padx=25)
 tk.Label(awin,text='2022 By rgzz666').pack(padx=25)
 
 ttk.Button(awin, text='My Site (Chinese)', command=lambda: webbrowser.open("http://rgzz.great-site.net/")).pack(padx=25,pady=15)
+ttk.Button(awin, text='GitHub Repo', command=lambda: webbrowser.open("https://github.com/totowang-hhh/music_down/")).pack(padx=25,pady=5)
 
 ttk.Separator(awin).pack(fill=tk.X,padx=50,pady=10)
 

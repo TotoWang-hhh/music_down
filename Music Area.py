@@ -328,25 +328,22 @@ def down():
     ars=ars[0:len(ars)-1]
     res=requests.get(inf['al']['picUrl'])
     img=res.content
-    f=open("./cache.jpg",'wb')
-    f.write(img)
-    f.close()
+    #f=open("./cache.jpg",'wb')
+    #f.write(img)
+    #f.close()
     if murl==None:
         win_print(mname+' 无版权')
         msgbox.showerror('音乐无版权',mname+' 无版权，没有音频可供下载')
     else:
         res=requests.get(url=murl)
         m=res.content
-        f=open(save_path,'wb')
-        f.write(m)
-        f.close()
         #编辑信息
         audiofile = eyed3.load(save_path)
         audiofile.initTag()
         audiofile.tag.title = inf['name']
         audiofile.tag.artist = ars
         audiofile.tag.album = inf['al']['name']
-        audiofile.tag.images.set(ImageFrame.FRONT_COVER, open('cache.jpg','rb').read(), 'image/jpeg')
+        audiofile.tag.images.set(ImageFrame.FRONT_COVER, img, 'image/jpeg')
         audiofile.tag.recording_date = str(pubyear)  # 年份
         audiofile.tag.save(version=eyed3.id3.ID3_V2_3)
     set_wait(False)
@@ -686,7 +683,7 @@ smnameEnter.pack(fill=tk.X)
 
 smsearchPart.pack(fill=tk.BOTH)
 
-nameEnter.bind('<Return>', lambda event:get_style_music(smnameEnter.get()))
+smnameEnter.bind('<Return>', lambda event:get_style_music(smnameEnter.get()))
 
 smtree = ttk.Treeview(smwin, show="headings")  # 表格
 smtree["columns"] = ("序号", "歌曲", "艺人","歌曲ID")
@@ -715,7 +712,7 @@ nb.add(aroot, text='关于')
 
 #tk.Label(awin,text='',font=('微软雅黑',15)).pack(padx=25)
 tk.Label(awin,text='音乐地带',font=('微软雅黑',25)).pack(padx=25,pady=15)
-tk.Button(awin,text='版本：5.3.1   配套播放器：0.1.1',bd=0,command=chkupdui).pack(padx=25)
+tk.Button(awin,text='版本：5.3.2 (532001)   配套播放器：0.1.1',bd=0,command=chkupdui).pack(padx=25)
 tk.Label(awin,text='2022 By 真_人工智障').pack(padx=25)
 
 ttk.Button(awin, text='我的官网', command=lambda: webbrowser.open("http://rgzz.great-site.net/")).pack(padx=25,pady=5)
