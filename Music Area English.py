@@ -234,7 +234,7 @@ def get_style_music(tagid):
     try:
         global mids,mnames,gkw
         gkw=tagid
-        delButton(tree)
+        delButton(smtree)
         #load_full_t=threading.Thread(target=lambda:load_full(word))#放在前面可以尽早覆盖加载全部的进程
         res=requests.get(url="https://cloudmusic-api.txm.world/style/song?tagId="+tagid)
         json=res.json()
@@ -526,23 +526,26 @@ def compare_ver(ver1, ver2):
 
 def chkupd():
     global nowver,newver
-    nowver='5.3.1'
+    nowver='5.3.3'
     res=requests.get("https://api.github.com/repos/totowang-hhh/music_down/releases/latest", verify=False) #该站SSL无效
     json=res.json()
     #print(json)
     newver=json['tag_name'].replace('v','')
     if compare_ver(nowver,newver)==-1:
         return True
+    elif compare_ver(nowver,newver)==1:
+        msgbox.showwarning('WARNING',"This version ("+nowver+") is newer than the newest ("+newver+"). \nDo not use the internal version without the author's permission. ")
+        return False
     else:
         return False
 
 def chkupdui(start=False):
     if chkupd():
-        if bool(msgbox.askyesno('Update Avaliable','This version ('+nowver+') < the newest version('+newver+'), \nSo there may an update avaliable. Would you update the software?')):
+        if bool(msgbox.askyesno('Update Avaliable','This version ('+nowver+') is older than the newest version('+newver+'), \nSo there may an update avaliable. Would you update the software?')):
             webbrowser.open("http://www.github.com/totowang-hhh/music_down/releases/latest")
     else:
         if not start:
-            msgbox.showinfo('Congratulations!','The version is the newest')
+            msgbox.showinfo('Congratulations!','This version is the newest')
 
 
 btnpt=tk.Frame(root)
@@ -712,7 +715,7 @@ nb.add(aroot, text='About')
 
 #tk.Label(awin,text='',font=('微软雅黑',15)).pack(padx=25)
 tk.Label(awin,text='Music Area',font=('微软雅黑',25)).pack(padx=25,pady=15)
-tk.Button(awin,text='Ver 5.3.1 (532001)   Player 0.1.1',bd=0,command=chkupdui).pack(padx=25)
+tk.Button(awin,text='Ver 5.3.3   Player 0.1.1',bd=0,command=chkupdui).pack(padx=25)
 tk.Label(awin,text='2022 By rgzz666').pack(padx=25)
 
 ttk.Button(awin, text='My Site (Chinese)', command=lambda: webbrowser.open("http://rgzz.great-site.net/")).pack(padx=25,pady=15)
@@ -739,8 +742,9 @@ win_print('Software Started')
 
 #print(nb.index(nb.select()))
 
-time.sleep(0.5)
+time.sleep(1)
 set_wait(False,start=True)
+chkupdui(start=True)
 
 win.mainloop()
 

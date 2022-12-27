@@ -4,6 +4,7 @@ from tkinter import ttk
 import tkinter.messagebox as msgbox
 import tkinter.filedialog as filebox
 from PIL import Image, ImageTk
+import random
 #from tkinter import *
 
 #启动页
@@ -25,6 +26,11 @@ def set_wait(state,start=False):#可移植，icon.ico为正方形图标即可
             tk.Label(mask,text='',font=('微软雅黑',15),bg='#FFFFFF').pack()
             tk.Label(mask,image=img,font=('微软雅黑',30),bg='#FFFFFF').pack(pady=50)
             tk.Label(mask,text='正在启动',font=('微软雅黑',15),bg='#FFFFFF').pack()
+            f=open("./tips.txt",'r',encoding='utf-8')
+            tips=f.read()
+            tiplst=tips.split('\n')
+            tip=tiplst[random.randint(0,len(tiplst)-1)]
+            tk.Label(mask,text=tip,font=('微软雅黑',13),bg='#FFFFFF',fg='#909090').pack(pady=30)
         else:
             mask.configure(background='#000000')
             mask.attributes("-alpha",0.7)
@@ -234,7 +240,7 @@ def get_style_music(tagid):
     try:
         global mids,mnames,gkw
         gkw=tagid
-        delButton(tree)
+        delButton(smtree)
         #load_full_t=threading.Thread(target=lambda:load_full(word))#放在前面可以尽早覆盖加载全部的进程
         res=requests.get(url="https://cloudmusic-api.txm.world/style/song?tagId="+tagid)
         json=res.json()
@@ -315,6 +321,15 @@ def down():
     save_path = filebox.asksaveasfilename(title='保存音乐', initialfile=mname + ".mp3", filetypes=[('MP3音频文件', '.mp3')])
     set_wait(True)
     win_print('正在将 {name} 下载到 {path} ......'.format(name=mname, path=save_path))
+    if murl==None:
+        msgbox.showerror('错误',mname+' 无版权')
+        win_print(mname+' 无版权')
+    else:
+        res=requests.get(url=murl)
+        m=res.content
+        f=open(save_path,'wb')
+        f.write(m)
+        f.close()
     infres=requests.get(url="https://cloudmusic-api.txm.world/song/detail?ids="+mid)
     infjson=infres.json()
     inf=infjson['songs'][0]
@@ -379,6 +394,7 @@ def play():
     json=res.json()
     murl=json['data'][0]['url']
     if murl==None:
+        msgbox.showerror('错误',mname+' 无版权')
         win_print(mname+' 无版权')
     else:
         res=requests.get(url=murl)
@@ -417,6 +433,33 @@ def play():
     set_wait(False)
     win_print('下载完成，启动播放器')
     os.popen('ma_player.exe')
+
+def openweb():
+    global nb
+    set_wait(True)
+    if int(nb.index(nb.select()))==0:#搜索下载
+        for item in tree.selection():
+            item_text = tree.item(item, "values")
+    elif int(nb.index(nb.select()))==1:#收藏下载
+        for item in ftree.selection():
+            item_text = ftree.item(item, "values")
+    elif int(nb.index(nb.select()))==2:#曲风搜歌
+        if int(swin.index(swin.select()))==2:#该风格的歌曲
+            for item in smtree.selection():
+                item_text = smtree.item(item, "values")
+        else:
+            msgbox.showerror('本地错误','您不能在本页使用此功能！')
+            return
+    else:
+        msgbox.showerror('本地错误','您不能在本页使用此功能！')
+        return
+    select = item_text[0]
+    select=select.split(' | ')[0]
+    select=int(select)
+    # return songmid[select-1], song_singer[select-1]
+    mid = mids[select - 1]
+    webbrowser.open("https://music.163.com/#/song?id="+mid)
+    set_wait(False)
 
 def copyid():
     global nb
@@ -526,13 +569,16 @@ def compare_ver(ver1, ver2):
 
 def chkupd():
     global nowver,newver
-    nowver='5.3.1'
+    nowver='5.3.3'
     res=requests.get("https://api.github.com/repos/totowang-hhh/music_down/releases/latest", verify=False) #该站SSL无效
     json=res.json()
     #print(json)
     newver=json['tag_name'].replace('v','')
     if compare_ver(nowver,newver)==-1:
         return True
+    elif compare_ver(nowver,newver)==1:
+        msgbox.showwarning('警告','您的版本（'+nowver+'）大于最新版（'+newver+'），若您未征得作者许可，请停止使用内部版本！')
+        return False
     else:
         return False
 
@@ -550,6 +596,7 @@ btnpt=tk.Frame(root)
 ttk.Button(btnpt, text='下载', command=down).pack(fill=tk.X,side=tk.LEFT,expand=True)
 ttk.Button(btnpt, text='收听', command=play).pack(fill=tk.X,side=tk.LEFT,expand=True)
 ttk.Button(btnpt, text='复制ID', command=copyid).pack(fill=tk.X,side=tk.LEFT,expand=True)
+ttk.Button(btnpt, text='在网页中查看', command=openweb).pack(fill=tk.X,side=tk.LEFT,expand=True)
 
 btnpt.pack(fill=tk.X,side=tk.BOTTOM)
 
@@ -712,7 +759,7 @@ nb.add(aroot, text='关于')
 
 #tk.Label(awin,text='',font=('微软雅黑',15)).pack(padx=25)
 tk.Label(awin,text='音乐地带',font=('微软雅黑',25)).pack(padx=25,pady=15)
-tk.Button(awin,text='版本：5.3.2 (532001)   配套播放器：0.1.1',bd=0,command=chkupdui).pack(padx=25)
+tk.Button(awin,text='版本：5.3.3   配套播放器：0.1.1',bd=0,command=chkupdui).pack(padx=25)
 tk.Label(awin,text='2022 By 真_人工智障').pack(padx=25)
 
 ttk.Button(awin, text='我的官网', command=lambda: webbrowser.open("http://rgzz.great-site.net/")).pack(padx=25,pady=5)
@@ -739,6 +786,7 @@ win_print('程序启动完成')
 
 #print(nb.index(nb.select()))
 
+time.sleep(1)
 set_wait(False,start=True)
 chkupdui(start=True)
 
