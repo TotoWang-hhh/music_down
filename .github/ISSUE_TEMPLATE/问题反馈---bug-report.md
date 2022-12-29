@@ -22,9 +22,10 @@ Provide a screenshot of the console.
 Switch to `User-friendly Output`, scroll to the bottom, then provide a screenshot of it.
 
 # 预料的正常反应（可选） / Expected behavior (Optional)
+简要清晰地描述您希望此处本应该如何
 A clear and concise description of what you expected to happen.
 
-# 问题截图 / Screenshots
+# 问题截图（可选） / Screenshots (Optional)
 提供问题截图或许可以帮助我更快地定位问题
 If applicable, add screenshots to help explain your problem.
 
@@ -36,5 +37,6 @@ please complete the following information
 - 软件版本 / Version：[e.g. v3.3.0]
 - 软件平台 / Platform：[e.g. Python源码 / Windows]
 
-**Additional context**
+# 附加内容（可选） / Additional context (Optional)
+在此处增加其他与问题相关的上下文内容
 Add any other context about the problem here.
