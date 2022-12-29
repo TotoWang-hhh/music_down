@@ -21,7 +21,7 @@ Provide a screenshot of the console.
 转到`用户友好输出`，滚动到底部，然后提供截图
 Switch to `User-friendly Output`, scroll to the bottom, then provide a screenshot of it.
 
-预料的正常反应（可选） / Expected behavior (Optional)
+# 预料的正常反应（可选） / Expected behavior (Optional)
 A clear and concise description of what you expected to happen.
 
 # 问题截图 / Screenshots
