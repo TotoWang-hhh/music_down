@@ -1,4 +1,4 @@
-# 导入库
+# 导入启动页必须的库
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as msgbox
@@ -6,6 +6,7 @@ import tkinter.filedialog as filebox
 from PIL import Image, ImageTk
 import random
 #from tkinter import *
+
 
 #启动页
 def set_wait(state,start=False):#可移植，icon.ico为正方形图标即可
@@ -19,6 +20,7 @@ def set_wait(state,start=False):#可移植，icon.ico为正方形图标即可
             global img,imgf
             mask.configure(background='#FFFFFF')
             mask.attributes("-alpha",1)
+            mask.attributes("-topmost",True)
             imgf=Image.open("./icon.ico")
             imgr=imgf.resize((256,256))
             img=ImageTk.PhotoImage(image=imgr)
@@ -64,6 +66,7 @@ root.update()
 set_wait(True,start=True)
 
 
+#导入其余的库，分为两部分是为了缩短启动界面出现前的等待时间
 import requests
 #import json
 import webbrowser
@@ -74,6 +77,74 @@ import datetime,time
 import eyed3
 from eyed3.id3.frames import ImageFrame
 import win32clipboard
+import json
+
+
+#读配置
+if not os.path.exists("./config.json"):
+    f=open("./config.json",'w',encoding='utf-8')
+    #创建默认配置
+    config={'Fluent UI':False,'API Domain':'cloudmusic.txm.world'} #默认配置
+    f.write(json.dumps(config))
+    f.close()
+
+f=open("./config.json",'r',encoding='utf-8')
+config_content=f.read()
+config=json.loads(config_content)
+
+
+def gen_settings_page(parent):
+    global config,ttkstyle,conf_pts,conf_switches
+    conf_pts=[] #设置的行（设置项）
+    conf_switches=[] #设置项对应的开关
+    conf_types=[] #设置项的类型，无法识别则存储为"unknown"
+    index=0 #当前索引
+    for conf in list(config.keys()):
+        conf_pts.append(tk.Frame(parent,height=70))
+        tk.Label(conf_pts[index],text=str(conf),font=('微软雅黑',13)).pack(side=tk.LEFT)
+        conf_types.append(type(config[conf]))
+        #调整设置的控件会根据数据类型而变化，故使用if语句来判断
+        if type(config[conf])==bool: #布尔 -> 复选框
+            conf_switches.append(ttk.Checkbutton(conf_pts[index],text='启用',takefocus=False))
+            conf_switches[index].pack(side=tk.RIGHT)
+            conf_switches[index].state(['!alternate'])
+            # 接下来就是根据读取的值进行填入
+            if config[conf]:
+                conf_switches[index].state(['!alternate'])
+            elif not config[conf]:
+                conf_switches[index].state(['!selected'])
+            else:
+                conf_switches[index]['state']='disabled'
+                conf_switches[index]['text']='设置的值不正确'
+        elif type(config[conf])==str: #字符串 -> 单行输入框
+            conf_switches.append(ttk.Entry(conf_pts[index]))
+            conf_switches[index].pack(side=tk.RIGHT)
+            conf_switches[index].insert(tk.END,config[conf])
+        else: #其他 -> 无法识别的文本提示
+            conf_switches.append(tk.Label(conf_pts[index],text='无法识别此配置项，请参阅帮助文档\n这不会造成错误，因为配置内容是按需调用的',
+                                 fg='#808080',justify='right'))
+            conf_types[index]='unknown'
+            conf_switches[index].pack(side=tk.RIGHT)
+        conf_pts[index].pack(fill=tk.X,pady=5)
+        index+=1
+
+
+def save_settings():
+    global config,conf_switches,conf_types
+    #print(conf_switches)
+    config_new=config #修改过的设置（保险起见，在原先的config上做修改）
+    index=0 #当前索引
+    for conf in list(config.keys()):
+        #按照生成设置界面的代码，判断数据类型，决定如何获取输入的值
+        if type(config[conf])==bool: #布尔 -> 直接获取config内的对应内容（CheckButton只能与变量绑定）
+            config_new[conf]=bool(conf_switches[index].state())
+        elif type(config[conf])==str: #字符串 -> Entry.get()
+            config_new[conf]=str(conf_switches[index].get())
+        index+=1
+    win_print("将保存配置信息，内容："+json.dumps(config_new))
+    f=open("./config.json",'w',encoding='utf-8')
+    f.write(json.dumps(config_new))
+    f.close()
 
 
 def delButton(tree):
@@ -100,10 +171,19 @@ def find_song(word):
             mlst=json['result']['songs']
             win_print('共找到 '+str(json['result']['songCount'])+' 条结果，当前显示30条，完整结果在后台加载')
             for m in mlst:
+                #由于网易云的接口返回信息的结构有时候隔几天就会有细微变化，歌手与专辑的键一下是ar和al，一下是全称，所以让程序自己随机应变吧
+                if 'ar' in list(m.keys()):
+                    mar=m['ar']
+                    #mal=m['al']
+                if 'artists' in list(m.keys()):
+                    mar=m['artists']
+                    #mal=m['album']
+                else:
+                    msgbox.showerror('错误','程序无法理解接口返回的数据')
                 mids.append(str(m['id']))
                 mnames.append(m['name'])
                 ars=''
-                for ar in m['ar']:
+                for ar in mar:
                     ars+=ar['name']+' / '
                 ars=ars[0:len(ars)-3]
                 no=str(mlst.index(m)+1)
@@ -210,7 +290,7 @@ def get_all_style():
 
 def get_fav_style(usr,pwd):
     global styles,fsstree
-    del_button(fstree)
+    delButton(fstree)
     set_wait(True)
     
     url="https://cloudmusic-api.txm.world/login?email="+usr+"&password="+pwd
@@ -500,36 +580,7 @@ def copyid():
     win32clipboard.CloseClipboard()
     msgbox.showinfo('复制完成','已将'+str(idtype)+'ID（'+str(mid)+'）复制到剪切板')
 
-def json2treeview(tree, parent, node):#感谢来自简书的WangLane，原链接https://www.jianshu.com/p/c6aae4d3f80d
-    """
-    Populate tree view by given json object.
-    :param tree: treeview widget.
-    :param parent: parent node of treeview.
-    :param node: node should be a dict object.
-    :return:
-    """
-    # 如果没有父节点，建立一个父节点
-    if parent is None:
-        parent = tree.insert('', 'end', text='Json')
-
-    # 由于node一定是dict，直接迭代
-    for item in node:
-        value = node.get(item)
-        if isinstance(value, dict):
-            cur = tree.insert(parent, 'end', text=str(item), values=(str(value).replace("'", '"'), type(value).__name__))
-            populate_treeview(tree, cur, value)
-        elif isinstance(value, list):
-            cur = tree.insert(parent, 'end', text=item, values=(str(value).replace("'", '"'), type(value).__name__))
-            for each in value:
-                if isinstance(each, dict):
-                    tmp = tree.insert(cur, 'end', text='{}')
-                    populate_treeview(tree, tmp, each)
-                else:
-                    tree.insert(cur, 'end', text=str(each), values=(str(value).replace("'", '"'), type(value).__name__))
-        elif isinstance(value, int) or isinstance(value, str) or isinstance(value, bool):
-            # tmp = str(item) + ':' + str(value)
-            tmp = str(item)
-            tree.insert(parent, 'end', text=tmp, values=(str(value).replace("'", '"'), type(value).__name__))
+#https://www.jianshu.com/p/c6aae4d3f80d上有好东西，它原本在这里
 
 def win_print(word):
     global consle
@@ -569,7 +620,7 @@ def compare_ver(ver1, ver2):
 
 def chkupd():
     global nowver,newver
-    nowver='5.3.3'
+    nowver='5.3.4'
     res=requests.get("https://api.github.com/repos/totowang-hhh/music_down/releases/latest", verify=False) #该站SSL无效
     json=res.json()
     #print(json)
@@ -759,10 +810,10 @@ nb.add(aroot, text='关于')
 
 #tk.Label(awin,text='',font=('微软雅黑',15)).pack(padx=25)
 tk.Label(awin,text='音乐地带',font=('微软雅黑',25)).pack(padx=25,pady=15)
-tk.Button(awin,text='版本：5.3.3   配套播放器：0.1.1',bd=0,command=chkupdui).pack(padx=25)
+tk.Button(awin,text='版本：5.3.4   配套播放器：0.1.1',bd=0,command=chkupdui).pack(padx=25)
 tk.Label(awin,text='2022 By 真_人工智障').pack(padx=25)
 
-ttk.Button(awin, text='我的官网', command=lambda: webbrowser.open("http://rgzz.great-site.net/")).pack(padx=25,pady=5)
+ttk.Button(awin, text='我的官网', command=lambda: webbrowser.open("http://rgzz.likesyou.org/")).pack(padx=25,pady=5)
 ttk.Button(awin, text='项目GitHub', command=lambda: webbrowser.open("https://github.com/totowang-hhh/music_down/")).pack(padx=25,pady=5)
 
 ttk.Separator(awin).pack(fill=tk.X,padx=50,pady=10)
@@ -780,16 +831,37 @@ tk.Label(aroot,text='请勿将任何下载的音乐用于商业用途，出现�
 tk.Label(aroot,text='作者承诺软件无强制性收费且开源，若您为购买所得，请立即向平台或作者举报！',fg='#FF0000').pack()
 
 
+seroot=tk.Frame(nb)
+nb.add(seroot, text='设置')
+
+ttk.Button(seroot,text='应用（部分设置重启后生效）',command=save_settings).pack(side=tk.BOTTOM,fill=tk.X)
+
+sewin=tk.Frame(seroot)
+gen_settings_page(sewin)
+sewin.pack(fill=tk.BOTH,expand=True,padx=50,pady=30)
+
+#sewin.pack()
+
+
 #win.pack(fill=tk.BOTH)
 nb.pack(fill=tk.BOTH,expand=True)
 win_print('程序启动完成')
 
 #print(nb.index(nb.select()))
 
+if bool(config['Fluent UI']): #根据配置信息使用Fluent UI主题（注：本主题设置窗口大小会卡顿，主题作者已发现该问题，并认为暂时无解）
+    import sv_ttk
+    sv_ttk.set_theme("light")
+
 time.sleep(1)
-set_wait(False,start=True)
-chkupdui(start=True)
+try:
+    chkupdui(start=True)
+    set_wait(False,start=True)
+except:
+    set_wait(False,start=True)
+    msgbox.showwarning('警告','无法检测更新。\n这意味着您似乎未连接到互联网，可能无法使用软件。\n\n如果您位于中国大陆且未使用网络加速工具，则该问题可能因为无法连接GitHub所导致，'+
+                       '这种情况下您将无法检测更新，但仍可使用软件。\n\n如果您正在使用较久远的版本，也可能是因为版本命名规则有变，该版本无法识别最新版本号。')
 
 win.mainloop()
 
-# def down():
+# def down():   注：这条注释可能在3.x开始开发时就已经存在于该文件中了，可以算是整个文件最久远的一条注释……目前我不打算删除……
