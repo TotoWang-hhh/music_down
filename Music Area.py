@@ -5,6 +5,7 @@ import tkinter.messagebox as msgbox
 import tkinter.filedialog as filebox
 from PIL import Image, ImageTk
 import random
+import re
 #from tkinter import *
 
 
@@ -84,7 +85,7 @@ import json
 if not os.path.exists("./config.json"):
     f=open("./config.json",'w',encoding='utf-8')
     #创建默认配置
-    config={'Fluent UI':False,'API Domain':'cloudmusic.txm.world'} #默认配置
+    config={'Fluent UI':False,'API Domain':'cloudmusic-api.txm.world','Use SSL':True} #默认配置
     f.write(json.dumps(config))
     f.close()
 
@@ -107,11 +108,11 @@ def gen_settings_page(parent):
         if type(config[conf])==bool: #布尔 -> 复选框
             conf_switches.append(ttk.Checkbutton(conf_pts[index],text='启用',takefocus=False))
             conf_switches[index].pack(side=tk.RIGHT)
-            conf_switches[index].state(['!alternate'])
+            #conf_switches[index].state(['!alternate'])
             # 接下来就是根据读取的值进行填入
-            if config[conf]:
+            if not bool(config[conf]):
                 conf_switches[index].state(['!alternate'])
-            elif not config[conf]:
+            elif bool(config[conf]):
                 conf_switches[index].state(['!selected'])
             else:
                 conf_switches[index]['state']='disabled'
@@ -131,6 +132,7 @@ def gen_settings_page(parent):
 
 def save_settings():
     global config,conf_switches,conf_types
+    print(conf_switches[0].state())
     #print(conf_switches)
     config_new=config #修改过的设置（保险起见，在原先的config上做修改）
     index=0 #当前索引
@@ -153,13 +155,14 @@ def delButton(tree):
         tree.delete(item)
 
 def find_song(word):
+    global config,apiurl
     set_wait(True)
     try:
         global mids,mnames,gkw
         gkw=word
         delButton(tree)
         #load_full_t=threading.Thread(target=lambda:load_full(word))#放在前面可以尽早覆盖加载全部的进程
-        res=requests.get(url="https://cloudmusic-api.txm.world/search?keywords="+word)
+        res=requests.get(url=apiurl+"/search?keywords="+word)
         json=res.json()
         mids=[]
         mnames=[]
@@ -200,38 +203,39 @@ def find_song(word):
         print('--------------------')
         print('网络信息：')
         print('访问链接：'+"https://cloudmusic-api.txm.world/search?keywords="+word)
-        print('返回数据：'+str(json))
+        print('返回数据不显示，以免进一步引发错误')
         print('--------------------')
         print('本地报错信息：')
         print(e)
         print('--------------------')
         print('额外信息：')
-        print('当前结果数：'+str(len(mids)))
+        #print('当前结果数：'+str(len(mids)))
         print('====================')
     set_wait(False)
 
 def get_fav(usr,pwd):
+    global config,apiurl
     set_wait(True)
     delButton(ftree)
     try:
         global mids,mnames
 
-        url="https://cloudmusic-api.txm.world/login?email="+usr+"&password="+pwd
+        url=apiurl+"/login?email="+usr+"&password="+pwd
         res=requests.get(url)
         json=res.json()
         cookie=json['cookie']
 
-        url="https://cloudmusic-api.txm.world/user/account?cookie="+str(cookie)
+        url=apiurl+"/user/account?cookie="+str(cookie)
         res=requests.get(url)
         json=res.json()
         uid=str(json['account']['id'])
 
-        url="https://cloudmusic-api.txm.world/user/playlist?limit=1&uid="+uid
+        url=apiurl+"/user/playlist?limit=1&uid="+uid
         res=requests.get(url)
         json=res.json()
         favlstid=str(json['playlist'][0]['id'])
 
-        url="https://cloudmusic-api.txm.world/playlist/track/all?id="+favlstid+"&cookie="+cookie
+        url=apiurl+"/playlist/track/all?id="+favlstid+"&cookie="+cookie
         res=requests.get(url)
         json=res.json()
         
@@ -258,21 +262,21 @@ def get_fav(usr,pwd):
         print('--------------------')
         print('网络信息：')
         print('访问链接：'+url)
-        print('返回数据：'+str(json))
+        print('返回数据不显示，以免进一步引发错误')
         print('--------------------')
         print('本地报错信息：')
         print(e)
         print('--------------------')
         print('额外信息：')
-        print('当前结果数：'+str(len(mids)))
+        #print('当前结果数：'+str(len(mids)))
         print('====================')
     set_wait(False)
 
 def get_all_style():
-    global styles,astree
+    global config,apiurl,styles,astree
     set_wait(True)
     delButton(astree)
-    res=requests.get("https://cloudmusic-api.txm.world/style/list")
+    res=requests.get(apiurl+"/style/list")
     json=res.json()
     style_lst=json['data']
     thread_list=[]
@@ -289,16 +293,16 @@ def get_all_style():
     set_wait(False)
 
 def get_fav_style(usr,pwd):
-    global styles,fsstree
+    global config,apiurl,styles,fsstree
     delButton(fstree)
     set_wait(True)
     
-    url="https://cloudmusic-api.txm.world/login?email="+usr+"&password="+pwd
+    url=apiurl+"/login?email="+usr+"&password="+pwd
     res=requests.get(url)
     json=res.json()
     cookie=json['cookie']
 
-    res=requests.get("https://cloudmusic-api.txm.world/style/preference?limit=20?cookie="+cookie)
+    res=requests.get(apiurl+"/style/preference?limit=20?cookie="+cookie)
     json=res.json()
     style_lst=json['data']['tagPreferenceVos']
 
@@ -316,13 +320,14 @@ def show_child_styles(style_lst,parent):
             show_child_styles(child,lst_parent)
 
 def get_style_music(tagid):
+    global config,apiurl
     set_wait(True)
     try:
         global mids,mnames,gkw
         gkw=tagid
         delButton(smtree)
         #load_full_t=threading.Thread(target=lambda:load_full(word))#放在前面可以尽早覆盖加载全部的进程
-        res=requests.get(url="https://cloudmusic-api.txm.world/style/song?tagId="+tagid)
+        res=requests.get(url=apiurl+"/style/song?tagId="+tagid)
         json=res.json()
         mids=[]
         mnames=[]
@@ -353,18 +358,18 @@ def get_style_music(tagid):
         print('--------------------')
         print('网络信息：')
         print('访问链接：'+"https://cloudmusic-api.txm.world/search?keywords="+tagid)
-        print('返回数据：'+str(json))
+        print('返回数据不显示，以免进一步引发错误')
         print('--------------------')
         print('本地报错信息：')
         print(e)
         print('--------------------')
         print('额外信息：')
-        print('当前结果数：'+str(len(mids)))
+        #print('当前结果数：'+str(len(mids)))
         print('====================')
     set_wait(False)
 
 def down():
-    global nb
+    global config,apiurl,nb
     set_wait(True)
     if int(nb.index(nb.select()))==0:#搜索下载
         for item in tree.selection():
@@ -388,7 +393,7 @@ def down():
     # return songmid[select-1], song_singer[select-1]
     mid = mids[select - 1]
     mname = mnames[select - 1]
-    res=requests.get(url="https://cloudmusic-api.txm.world/song/url?id="+mid+"&br=320000")#+'&cookie='+cookie)
+    res=requests.get(url=apiurl+"/song/url?id="+mid+"&br=320000")#+'&cookie='+cookie)
     json=res.json()
     murl=json['data'][0]['url']
     set_wait(False)
@@ -410,7 +415,7 @@ def down():
         f=open(save_path,'wb')
         f.write(m)
         f.close()
-    infres=requests.get(url="https://cloudmusic-api.txm.world/song/detail?ids="+mid)
+    infres=requests.get(url=apiurl+"/song/detail?ids="+mid)
     infjson=infres.json()
     inf=infjson['songs'][0]
     ars=''
@@ -444,7 +449,7 @@ def down():
     set_wait(False)
 
 def play():
-    global nb
+    global config,apiurl,nb
     set_wait(True)
     if int(nb.index(nb.select()))==0:#搜索下载
         for item in tree.selection():
@@ -470,7 +475,7 @@ def play():
     mname = mnames[select - 1]
     save_path = "./cache.mp3"
     win_print('将 {name} 下载到 {path} 以试听'.format(name=mname, path=save_path))
-    res=requests.get(url="https://cloudmusic-api.txm.world/song/url?id="+mid+"&br=320000")#+'&cookie='+cookie)
+    res=requests.get(url=apiurl+"/song/url?id="+mid+"&br=320000")#+'&cookie='+cookie)
     json=res.json()
     murl=json['data'][0]['url']
     if murl==None:
@@ -482,7 +487,7 @@ def play():
         f=open(save_path,'wb')
         f.write(m)
         f.close()
-    infres=requests.get(url="https://cloudmusic-api.txm.world/song/detail?ids="+mid)
+    infres=requests.get(url=apiurl+"/song/detail?ids="+mid)
     infjson=infres.json()
     inf=infjson['songs'][0]
     ars=''
@@ -515,7 +520,7 @@ def play():
     os.popen('ma_player.exe')
 
 def openweb():
-    global nb
+    global config,apiurl,nb
     set_wait(True)
     if int(nb.index(nb.select()))==0:#搜索下载
         for item in tree.selection():
@@ -542,7 +547,7 @@ def openweb():
     set_wait(False)
 
 def copyid():
-    global nb
+    global config,apiurl,nb
     id_index=3
     if int(nb.index(nb.select()))==0:#搜索下载
         for item in tree.selection():
@@ -849,10 +854,26 @@ win_print('程序启动完成')
 
 #print(nb.index(nb.select()))
 
+
+#大部分配置被使用的位置
 if bool(config['Fluent UI']): #根据配置信息使用Fluent UI主题（注：本主题设置窗口大小会卡顿，主题作者已发现该问题，并认为暂时无解）
     import sv_ttk
     sv_ttk.set_theme("light")
 
+if bool(config['Use SSL']): #根据配置信息决定是否使用SSL（即使用http还是https）
+    apiurl="https://"+str(config['API Domain'])
+else:
+    apiurl="http://"+str(config['API Domain'])
+
+if not re.match(r"^https?:/{2}\w.+$",apiurl): #必需先确认是否为有效的配置项，因为此配置若出现错误会导致软件无法使用
+    #配置信息内容有误则会直接使用默认（域名cloudmusic-api.txm.world，使用SSL）
+    win_print("API域名配置有误，将使用默认域名。详细信息请参阅帮助文档。")
+    apiurl="https://cloudmusic-api.txm.world"
+
+win_print("将使用网址为 "+apiurl+" 的API，您可以检查其可用性")
+
+
+#消除启动页并检查更新
 time.sleep(1)
 try:
     chkupdui(start=True)
@@ -862,6 +883,8 @@ except:
     msgbox.showwarning('警告','无法检测更新。\n这意味着您似乎未连接到互联网，可能无法使用软件。\n\n如果您位于中国大陆且未使用网络加速工具，则该问题可能因为无法连接GitHub所导致，'+
                        '这种情况下您将无法检测更新，但仍可使用软件。\n\n如果您正在使用较久远的版本，也可能是因为版本命名规则有变，该版本无法识别最新版本号。')
 
+
+#窗口主循环
 win.mainloop()
 
 # def down():   注：这条注释可能在3.x开始开发时就已经存在于该文件中了，可以算是整个文件最久远的一条注释……目前我不打算删除……
