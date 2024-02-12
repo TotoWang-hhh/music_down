@@ -1,13 +1,11 @@
-# 导入启动页必须的库
+# 导入库
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as msgbox
 import tkinter.filedialog as filebox
 from PIL import Image, ImageTk
 import random
-import re
 #from tkinter import *
-
 
 #启动页
 def set_wait(state,start=False):#可移植，icon.ico为正方形图标即可
@@ -21,7 +19,6 @@ def set_wait(state,start=False):#可移植，icon.ico为正方形图标即可
             global img,imgf
             mask.configure(background='#FFFFFF')
             mask.attributes("-alpha",1)
-            mask.attributes("-topmost",True)
             imgf=Image.open("./icon.ico")
             imgr=imgf.resize((256,256))
             img=ImageTk.PhotoImage(image=imgr)
@@ -67,8 +64,8 @@ root.update()
 set_wait(True,start=True)
 
 
-#导入其余的库，分为两部分是为了缩短启动界面出现前的等待时间
-import requests
+#import requests
+from pypac import PACSession
 #import json
 import webbrowser
 import os
@@ -78,76 +75,8 @@ import datetime,time
 import eyed3
 from eyed3.id3.frames import ImageFrame
 import win32clipboard
-import json
 
-
-#读配置
-if not os.path.exists("./config.json"):
-    f=open("./config.json",'w',encoding='utf-8')
-    #创建默认配置
-    config={'Fluent UI':False,'API Domain':'cloudmusic-api.txm.world','Use SSL':True} #默认配置
-    f.write(json.dumps(config))
-    f.close()
-
-f=open("./config.json",'r',encoding='utf-8')
-config_content=f.read()
-config=json.loads(config_content)
-
-
-def gen_settings_page(parent):
-    global config,ttkstyle,conf_pts,conf_switches
-    conf_pts=[] #设置的行（设置项）
-    conf_switches=[] #设置项对应的开关
-    conf_types=[] #设置项的类型，无法识别则存储为"unknown"
-    index=0 #当前索引
-    for conf in list(config.keys()):
-        conf_pts.append(tk.Frame(parent,height=70))
-        tk.Label(conf_pts[index],text=str(conf),font=('微软雅黑',13)).pack(side=tk.LEFT)
-        conf_types.append(type(config[conf]))
-        #调整设置的控件会根据数据类型而变化，故使用if语句来判断
-        if type(config[conf])==bool: #布尔 -> 复选框
-            conf_switches.append(ttk.Checkbutton(conf_pts[index],text='启用',takefocus=False))
-            conf_switches[index].pack(side=tk.RIGHT)
-            #conf_switches[index].state(['!alternate'])
-            # 接下来就是根据读取的值进行填入
-            if not bool(config[conf]):
-                conf_switches[index].state(['!alternate'])
-            elif bool(config[conf]):
-                conf_switches[index].state(['!selected'])
-            else:
-                conf_switches[index]['state']='disabled'
-                conf_switches[index]['text']='设置的值不正确'
-        elif type(config[conf])==str: #字符串 -> 单行输入框
-            conf_switches.append(ttk.Entry(conf_pts[index]))
-            conf_switches[index].pack(side=tk.RIGHT)
-            conf_switches[index].insert(tk.END,config[conf])
-        else: #其他 -> 无法识别的文本提示
-            conf_switches.append(tk.Label(conf_pts[index],text='无法识别此配置项，请参阅帮助文档\n这不会造成错误，因为配置内容是按需调用的',
-                                 fg='#808080',justify='right'))
-            conf_types[index]='unknown'
-            conf_switches[index].pack(side=tk.RIGHT)
-        conf_pts[index].pack(fill=tk.X,pady=5)
-        index+=1
-
-
-def save_settings():
-    global config,conf_switches,conf_types
-    print(conf_switches[0].state())
-    #print(conf_switches)
-    config_new=config #修改过的设置（保险起见，在原先的config上做修改）
-    index=0 #当前索引
-    for conf in list(config.keys()):
-        #按照生成设置界面的代码，判断数据类型，决定如何获取输入的值
-        if type(config[conf])==bool: #布尔 -> 直接获取config内的对应内容（CheckButton只能与变量绑定）
-            config_new[conf]=bool(conf_switches[index].state())
-        elif type(config[conf])==str: #字符串 -> Entry.get()
-            config_new[conf]=str(conf_switches[index].get())
-        index+=1
-    win_print("将保存配置信息，内容："+json.dumps(config_new))
-    f=open("./config.json",'w',encoding='utf-8')
-    f.write(json.dumps(config_new))
-    f.close()
-
+requests=PACSession()
 
 def delButton(tree):
     x = tree.get_children()
@@ -155,14 +84,14 @@ def delButton(tree):
         tree.delete(item)
 
 def find_song(word):
-    global config,apiurl
+    global proxies
     set_wait(True)
     try:
         global mids,mnames,gkw
         gkw=word
         delButton(tree)
         #load_full_t=threading.Thread(target=lambda:load_full(word))#放在前面可以尽早覆盖加载全部的进程
-        res=requests.get(url=apiurl+"/search?keywords="+word)
+        res=requests.get(url="https://cloudmusic-api-one.vercel.app/search?keywords="+word)
         json=res.json()
         mids=[]
         mnames=[]
@@ -174,20 +103,15 @@ def find_song(word):
             mlst=json['result']['songs']
             win_print('共找到 '+str(json['result']['songCount'])+' 条结果，当前显示30条，完整结果在后台加载')
             for m in mlst:
-                #由于网易云的接口返回信息的结构有时候隔几天就会有细微变化，歌手与专辑的键一下是ar和al，一下是全称，所以让程序自己随机应变吧
-                if 'ar' in list(m.keys()):
-                    mar=m['ar']
-                    #mal=m['al']
-                if 'artists' in list(m.keys()):
-                    mar=m['artists']
-                    #mal=m['album']
-                else:
-                    msgbox.showerror('错误','程序无法理解接口返回的数据')
                 mids.append(str(m['id']))
                 mnames.append(m['name'])
                 ars=''
-                for ar in mar:
-                    ars+=ar['name']+' / '
+                try:
+                    for ar in m['artists']:
+                        ars+=ar['name']+' / '
+                except:
+                    for ar in m['ar']:
+                        ars+=ar['name']+' / '
                 ars=ars[0:len(ars)-3]
                 no=str(mlst.index(m)+1)
                 if int(m['fee'])==1:
@@ -202,40 +126,40 @@ def find_song(word):
         print('出错函数：find_song')
         print('--------------------')
         print('网络信息：')
-        print('访问链接：'+"https://cloudmusic-api.txm.world/search?keywords="+word)
-        print('返回数据不显示，以免进一步引发错误')
+        print('访问链接：'+"https://cloudmusic-api-one.vercel.app/search?keywords="+word)
+        print('返回数据：'+str(json))
         print('--------------------')
         print('本地报错信息：')
         print(e)
         print('--------------------')
         print('额外信息：')
-        #print('当前结果数：'+str(len(mids)))
+        print('当前结果数：'+str(len(mids)))
         print('====================')
     set_wait(False)
 
 def get_fav(usr,pwd):
-    global config,apiurl
+    global proxies
     set_wait(True)
     delButton(ftree)
     try:
         global mids,mnames
 
-        url=apiurl+"/login?email="+usr+"&password="+pwd
+        url="https://cloudmusic-api-one.vercel.app/login?email="+usr+"&password="+pwd
         res=requests.get(url)
         json=res.json()
         cookie=json['cookie']
 
-        url=apiurl+"/user/account?cookie="+str(cookie)
+        url="https://cloudmusic-api-one.vercel.app/user/account?cookie="+str(cookie)
         res=requests.get(url)
         json=res.json()
         uid=str(json['account']['id'])
 
-        url=apiurl+"/user/playlist?limit=1&uid="+uid
+        url="https://cloudmusic-api-one.vercel.app/user/playlist?limit=1&uid="+uid
         res=requests.get(url)
         json=res.json()
         favlstid=str(json['playlist'][0]['id'])
 
-        url=apiurl+"/playlist/track/all?id="+favlstid+"&cookie="+cookie
+        url="https://cloudmusic-api-one.vercel.app/playlist/track/all?id="+favlstid+"&cookie="+cookie
         res=requests.get(url)
         json=res.json()
         
@@ -262,21 +186,21 @@ def get_fav(usr,pwd):
         print('--------------------')
         print('网络信息：')
         print('访问链接：'+url)
-        print('返回数据不显示，以免进一步引发错误')
+        print('返回数据：'+str(json))
         print('--------------------')
         print('本地报错信息：')
         print(e)
         print('--------------------')
         print('额外信息：')
-        #print('当前结果数：'+str(len(mids)))
+        print('当前结果数：'+str(len(mids)))
         print('====================')
     set_wait(False)
 
 def get_all_style():
-    global config,apiurl,styles,astree
+    global styles,astree,proxies
     set_wait(True)
     delButton(astree)
-    res=requests.get(apiurl+"/style/list")
+    res=requests.get("https://cloudmusic-api-one.vercel.app/style/list")
     json=res.json()
     style_lst=json['data']
     thread_list=[]
@@ -293,16 +217,16 @@ def get_all_style():
     set_wait(False)
 
 def get_fav_style(usr,pwd):
-    global config,apiurl,styles,fsstree
-    delButton(fstree)
+    global styles,fsstree,proxies
+    del_button(fstree)
     set_wait(True)
     
-    url=apiurl+"/login?email="+usr+"&password="+pwd
+    url="https://cloudmusic-api-one.vercel.app/login?email="+usr+"&password="+pwd
     res=requests.get(url)
     json=res.json()
     cookie=json['cookie']
 
-    res=requests.get(apiurl+"/style/preference?limit=20?cookie="+cookie)
+    res=requests.get("https://cloudmusic-api-one.vercel.app/style/preference?limit=20?cookie="+cookie)
     json=res.json()
     style_lst=json['data']['tagPreferenceVos']
 
@@ -320,14 +244,14 @@ def show_child_styles(style_lst,parent):
             show_child_styles(child,lst_parent)
 
 def get_style_music(tagid):
-    global config,apiurl
+    global proxies
     set_wait(True)
     try:
         global mids,mnames,gkw
         gkw=tagid
         delButton(smtree)
         #load_full_t=threading.Thread(target=lambda:load_full(word))#放在前面可以尽早覆盖加载全部的进程
-        res=requests.get(url=apiurl+"/style/song?tagId="+tagid)
+        res=requests.get(url="https://cloudmusic-api-one.vercel.app/style/song?tagId="+tagid)
         json=res.json()
         mids=[]
         mnames=[]
@@ -357,19 +281,19 @@ def get_style_music(tagid):
         print('出错函数：get_style_music')
         print('--------------------')
         print('网络信息：')
-        print('访问链接：'+"https://cloudmusic-api.txm.world/search?keywords="+tagid)
-        print('返回数据不显示，以免进一步引发错误')
+        print('访问链接：'+"https://cloudmusic-api-one.vercel.app/search?keywords="+tagid)
+        print('返回数据：'+str(json))
         print('--------------------')
         print('本地报错信息：')
         print(e)
         print('--------------------')
         print('额外信息：')
-        #print('当前结果数：'+str(len(mids)))
+        print('当前结果数：'+str(len(mids)))
         print('====================')
     set_wait(False)
 
 def down():
-    global config,apiurl,nb
+    global nb
     set_wait(True)
     if int(nb.index(nb.select()))==0:#搜索下载
         for item in tree.selection():
@@ -393,7 +317,7 @@ def down():
     # return songmid[select-1], song_singer[select-1]
     mid = mids[select - 1]
     mname = mnames[select - 1]
-    res=requests.get(url=apiurl+"/song/url?id="+mid+"&br=320000")#+'&cookie='+cookie)
+    res=requests.get(url="https://cloudmusic-api-one.vercel.app/song/url?id="+mid+"&br=320000")#+'&cookie='+cookie)
     json=res.json()
     murl=json['data'][0]['url']
     set_wait(False)
@@ -415,7 +339,7 @@ def down():
         f=open(save_path,'wb')
         f.write(m)
         f.close()
-    infres=requests.get(url=apiurl+"/song/detail?ids="+mid)
+    infres=requests.get(url="https://cloudmusic-api-one.vercel.app/song/detail?ids="+mid)
     infjson=infres.json()
     inf=infjson['songs'][0]
     ars=''
@@ -449,7 +373,7 @@ def down():
     set_wait(False)
 
 def play():
-    global config,apiurl,nb
+    global nb
     set_wait(True)
     if int(nb.index(nb.select()))==0:#搜索下载
         for item in tree.selection():
@@ -475,7 +399,7 @@ def play():
     mname = mnames[select - 1]
     save_path = "./cache.mp3"
     win_print('将 {name} 下载到 {path} 以试听'.format(name=mname, path=save_path))
-    res=requests.get(url=apiurl+"/song/url?id="+mid+"&br=320000")#+'&cookie='+cookie)
+    res=requests.get(url="https://cloudmusic-api-one.vercel.app/song/url?id="+mid+"&br=320000")#+'&cookie='+cookie)
     json=res.json()
     murl=json['data'][0]['url']
     if murl==None:
@@ -487,7 +411,7 @@ def play():
         f=open(save_path,'wb')
         f.write(m)
         f.close()
-    infres=requests.get(url=apiurl+"/song/detail?ids="+mid)
+    infres=requests.get(url="https://cloudmusic-api-one.vercel.app/song/detail?ids="+mid)
     infjson=infres.json()
     inf=infjson['songs'][0]
     ars=''
@@ -520,7 +444,7 @@ def play():
     os.popen('ma_player.exe')
 
 def openweb():
-    global config,apiurl,nb
+    global nb
     set_wait(True)
     if int(nb.index(nb.select()))==0:#搜索下载
         for item in tree.selection():
@@ -547,7 +471,7 @@ def openweb():
     set_wait(False)
 
 def copyid():
-    global config,apiurl,nb
+    global nb
     id_index=3
     if int(nb.index(nb.select()))==0:#搜索下载
         for item in tree.selection():
@@ -585,7 +509,36 @@ def copyid():
     win32clipboard.CloseClipboard()
     msgbox.showinfo('复制完成','已将'+str(idtype)+'ID（'+str(mid)+'）复制到剪切板')
 
-#https://www.jianshu.com/p/c6aae4d3f80d上有好东西，它原本在这里
+def json2treeview(tree, parent, node):#感谢来自简书的WangLane，原链接https://www.jianshu.com/p/c6aae4d3f80d
+    """
+    Populate tree view by given json object.
+    :param tree: treeview widget.
+    :param parent: parent node of treeview.
+    :param node: node should be a dict object.
+    :return:
+    """
+    # 如果没有父节点，建立一个父节点
+    if parent is None:
+        parent = tree.insert('', 'end', text='Json')
+
+    # 由于node一定是dict，直接迭代
+    for item in node:
+        value = node.get(item)
+        if isinstance(value, dict):
+            cur = tree.insert(parent, 'end', text=str(item), values=(str(value).replace("'", '"'), type(value).__name__))
+            populate_treeview(tree, cur, value)
+        elif isinstance(value, list):
+            cur = tree.insert(parent, 'end', text=item, values=(str(value).replace("'", '"'), type(value).__name__))
+            for each in value:
+                if isinstance(each, dict):
+                    tmp = tree.insert(cur, 'end', text='{}')
+                    populate_treeview(tree, tmp, each)
+                else:
+                    tree.insert(cur, 'end', text=str(each), values=(str(value).replace("'", '"'), type(value).__name__))
+        elif isinstance(value, int) or isinstance(value, str) or isinstance(value, bool):
+            # tmp = str(item) + ':' + str(value)
+            tmp = str(item)
+            tree.insert(parent, 'end', text=tmp, values=(str(value).replace("'", '"'), type(value).__name__))
 
 def win_print(word):
     global consle
@@ -624,27 +577,30 @@ def compare_ver(ver1, ver2):
         return 1
 
 def chkupd():
-    global nowver,newver
-    nowver='5.3.4'
-    res=requests.get("https://api.github.com/repos/totowang-hhh/music_down/releases/latest", verify=False) #该站SSL无效
-    json=res.json()
+    #global nowver,newver
+    #nowver='5.3.3'
+    #res=requests.get("https://api.github.com/repos/totowang-hhh/music_down/releases/latest", verify=False) #该站SSL无效
+    #json=res.json()
     #print(json)
-    newver=json['tag_name'].replace('v','')
-    if compare_ver(nowver,newver)==-1:
-        return True
-    elif compare_ver(nowver,newver)==1:
-        msgbox.showwarning('警告','您的版本（'+nowver+'）大于最新版（'+newver+'），若您未征得作者许可，请停止使用内部版本！')
-        return False
-    else:
-        return False
+    #newver=json['tag_name'].replace('v','')
+    #if compare_ver(nowver,newver)==-1:
+    #    return True
+    #elif compare_ver(nowver,newver)==1:
+    #    msgbox.showwarning('警告','您的版本（'+nowver+'）大于最新版（'+newver+'），若您未征得作者许可，请停止使用内部版本！')
+    #    return False
+    #else:
+    #    return False
+    return False
 
 def chkupdui(start=False):
-    if chkupd():
-        if bool(msgbox.askyesno('版本更新','您的版本（'+nowver+'）小于最新版（'+newver+'），\n这说明有版本更新可用，您需要前往新版下载页吗？')):
-            webbrowser.open("http://www.github.com/totowang-hhh/music_down/releases/latest")
-    else:
-        if not start:
-            msgbox.showinfo('恭喜','您正在使用的版本是最新的')
+    #if chkupd():
+    #    if bool(msgbox.askyesno('版本更新','您的版本（'+nowver+'）小于最新版（'+newver+'），\n这说明有版本更新可用，您需要前往新版下载页吗？')):
+    #        webbrowser.open("http://www.github.com/totowang-hhh/music_down/releases/latest")
+    #else:
+    #    if not start:
+    #        msgbox.showinfo('恭喜','您正在使用的版本是最新的')
+    if not start:
+        msgbox.showinfo('未检查更新','此为最终版本，不再检查更新。\n感谢使用，后会无期！')
 
 
 btnpt=tk.Frame(root)
@@ -807,6 +763,34 @@ console = tk.Text(nb,font=('consolas', '10'),height=10)
 nb.add(console, text='友好输出')
 
 
+#告别
+froot=tk.Frame(nb)
+#tk.Label(froot,text='',font=('微软雅黑',20)).pack()
+tk.Label(froot,text='此为最终续命版本',font=('微软雅黑',15,'bold')).pack()
+#tk.Label(froot,text='').pack()
+tk.Label(froot,text='我的个人精力有限，无法再继续完善此项目').pack()
+tk.Label(froot,text='').pack()
+tk.Label(froot,text='这个项目的原理尚且可行，所以我对其稍加修复，').pack()
+tk.Label(froot,text='基于当前最稳定的5.3.3制作了这个最终续命版本。').pack()
+tk.Label(froot,text='您可以继续使用该版本，直到NeteaseCloudmusicAPI的终点。').pack()
+tk.Label(froot,text='').pack()
+tk.Label(froot,text='该版本将会访问Vercel上的API，请自备可用的网络环境！').pack()
+tk.Label(froot,text='该版本可以使用系统代理！这是我为续命做的最后努力。').pack()
+tk.Label(froot,text='').pack()
+tk.Label(froot,text='任何其他问题，仍然可以问我！').pack()
+ttk.Button(froot,text='通过电子邮件联系我',command=lambda:webbrowser.open("mailto:tt1224@hotmail.com")).pack()
+tk.Label(froot,text='').pack()
+tk.Label(froot,text='我仍然会继续做一些有趣的作品').pack()
+tk.Label(froot,text='您可以关注我GitHub上的其他项目').pack()
+ttk.Button(froot,text='我的GitHub',command=lambda:webbrowser.open("https://github.xom/totowang-hhh/")).pack()
+tk.Label(froot,text='').pack()
+tk.Label(froot,text='感谢您的使用，再见！').pack()
+tk.Label(froot,text='').pack()
+tk.Label(froot,text='—— 真_人工智障 / rgzz666',anchor='e').pack(fill=tk.X,padx=50)
+tk.Label(froot,text='2024/02/13',anchor='e').pack(fill=tk.X,padx=50)
+nb.add(froot, text='告别')
+
+
 #关于
 aroot=tk.Frame(nb)
 awin=tk.Frame(aroot,width=400,height=500)
@@ -814,11 +798,12 @@ awin.pack()
 nb.add(aroot, text='关于')
 
 #tk.Label(awin,text='',font=('微软雅黑',15)).pack(padx=25)
-tk.Label(awin,text='音乐地带',font=('微软雅黑',25)).pack(padx=25,pady=15)
-tk.Button(awin,text='版本：5.3.4   配套播放器：0.1.1',bd=0,command=chkupdui).pack(padx=25)
-tk.Label(awin,text='2022 By 真_人工智障').pack(padx=25)
+tk.Label(awin,text='音乐地带',font=('微软雅黑',25)).pack(padx=25,pady=5)
+tk.Button(awin,text='版本：5.3.3.fix   配套播放器：0.1.1',bd=0,command=chkupdui).pack(padx=25)
+tk.Label(awin,text='2024 By 真_人工智障').pack(padx=25)
+tk.Label(awin,text='— 最终版本 · 后会无期 —').pack(padx=25)
 
-ttk.Button(awin, text='我的官网', command=lambda: webbrowser.open("http://rgzz.likesyou.org/")).pack(padx=25,pady=5)
+ttk.Button(awin, text='我的官网', command=lambda: webbrowser.open("http://rgzz.great-site.net/")).pack(padx=25,pady=5)
 ttk.Button(awin, text='项目GitHub', command=lambda: webbrowser.open("https://github.com/totowang-hhh/music_down/")).pack(padx=25,pady=5)
 
 ttk.Separator(awin).pack(fill=tk.X,padx=50,pady=10)
@@ -826,8 +811,9 @@ ttk.Separator(awin).pack(fill=tk.X,padx=50,pady=10)
 tk.Label(awin,text='鸣谢',font=('微软雅黑',15)).pack(padx=25,pady=5)
 tk.Button(awin,text='Vercel — API部署',bd=0,command=lambda:webbrowser.open("https://www.vercel.com")).pack(padx=25)
 tk.Button(awin,text='Heymu — 播放器',bd=0,command=lambda:webbrowser.open("https://teameow.xyz/")).pack(padx=25)
-tk.Button(awin,text='AXIOMXS — 二级域名',bd=0,command=lambda:msgbox.showinfo('关于他','AXIOMXS，官网已删，网名频繁修改\n为尊重隐私，故不提供联系方式')).pack(padx=25)
+#tk.Button(awin,text='AXIOMXS — 二级域名',bd=0,command=lambda:msgbox.showinfo('关于他','AXIOMXS，官网已删，网名频繁修改\n为尊重隐私，故不提供联系方式')).pack(padx=25)
 tk.Button(awin,text='网易云音乐 NodeJS 版 API — 一切之本',bd=0,command=lambda:webbrowser.open("https://github.com/Binaryify/NeteaseCloudMusicApi")).pack(padx=25)
+tk.Label(awin,text='· 以及每一位用户 ·',font=('微软雅黑',12,'bold')).pack(padx=25)
 
 ttk.Separator(awin).pack(fill=tk.X,padx=50,pady=10)
 
@@ -836,55 +822,21 @@ tk.Label(aroot,text='请勿将任何下载的音乐用于商业用途，出现�
 tk.Label(aroot,text='作者承诺软件无强制性收费且开源，若您为购买所得，请立即向平台或作者举报！',fg='#FF0000').pack()
 
 
-seroot=tk.Frame(nb)
-nb.add(seroot, text='设置')
-
-ttk.Button(seroot,text='应用（部分设置重启后生效）',command=save_settings).pack(side=tk.BOTTOM,fill=tk.X)
-
-sewin=tk.Frame(seroot)
-gen_settings_page(sewin)
-sewin.pack(fill=tk.BOTH,expand=True,padx=50,pady=30)
-
-#sewin.pack()
-
-
 #win.pack(fill=tk.BOTH)
 nb.pack(fill=tk.BOTH,expand=True)
 win_print('程序启动完成')
 
 #print(nb.index(nb.select()))
 
-
-#大部分配置被使用的位置
-if bool(config['Fluent UI']): #根据配置信息使用Fluent UI主题（注：本主题设置窗口大小会卡顿，主题作者已发现该问题，并认为暂时无解）
-    import sv_ttk
-    sv_ttk.set_theme("light")
-
-if bool(config['Use SSL']): #根据配置信息决定是否使用SSL（即使用http还是https）
-    apiurl="https://"+str(config['API Domain'])
-else:
-    apiurl="http://"+str(config['API Domain'])
-
-if not re.match(r"^https?:/{2}\w.+$",apiurl): #必需先确认是否为有效的配置项，因为此配置若出现错误会导致软件无法使用
-    #配置信息内容有误则会直接使用默认（域名cloudmusic-api.txm.world，使用SSL）
-    win_print("API域名配置有误，将使用默认域名。详细信息请参阅帮助文档。")
-    apiurl="https://cloudmusic-api.txm.world"
-
-win_print("将使用网址为 "+apiurl+" 的API，您可以检查其可用性")
-
-
-#消除启动页并检查更新
 time.sleep(1)
-try:
-    chkupdui(start=True)
-    set_wait(False,start=True)
-except:
-    set_wait(False,start=True)
-    msgbox.showwarning('警告','无法检测更新。\n这意味着您似乎未连接到互联网，可能无法使用软件。\n\n如果您位于中国大陆且未使用网络加速工具，则该问题可能因为无法连接GitHub所导致，'+
-                       '这种情况下您将无法检测更新，但仍可使用软件。\n\n如果您正在使用较久远的版本，也可能是因为版本命名规则有变，该版本无法识别最新版本号。')
+set_wait(False,start=True)
+#chkupdui(start=True)
 
 
-#窗口主循环
+#win_print("Your proxies:\n"+str(proxies))
+win_print("最终续命版本，请自行准备能够使用Vercel的网络环境")
+win_print("我们后会无期！")
+
 win.mainloop()
 
-# def down():   注：这条注释可能在3.x开始开发时就已经存在于该文件中了，可以算是整个文件最久远的一条注释……目前我不打算删除……
+# def down():
