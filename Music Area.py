@@ -32,10 +32,10 @@ def set_wait(state,start=False):#可移植，icon.ico为正方形图标即可
             tip=tiplst[random.randint(0,len(tiplst)-1)]
             tk.Label(mask,text=tip,font=('微软雅黑',13),bg='#FFFFFF',fg='#909090').pack(pady=30)
         else:
-            mask.configure(background='#000000')
-            mask.attributes("-alpha",0.7)
-            mask.geometry(str(root.winfo_width())+'x'+str(root.winfo_height())+'+'+str(root.winfo_x()+10)+'+'+str(root.winfo_y()+30))
-            tk.Label(mask,text='加载中',font=('微软雅黑',30),bg='#000000',fg='#FFFFFF').pack(pady=150)
+            mask.configure(background='#000050')
+            mask.attributes("-alpha",1.0)
+            mask.geometry(str(150)+'x'+str(100)+'+'+str(root.winfo_x()+(root.winfo_width()-150)//2+10)+'+'+str(root.winfo_y()+(root.winfo_height()-100)//2+30))
+            tk.Label(mask,text='加载中',font=('微软雅黑',30),bg='#000050',fg='#FFFFFF').pack(pady=30)
         root.update()
         mask.update()
     else:
@@ -54,7 +54,7 @@ def set_wait(state,start=False):#可移植，icon.ico为正方形图标即可
 root = tk.Tk()
 root.title('音乐地带')
 #win.iconbitmap("./icon.ico")
-root.minsize(600,510)
+root.minsize(600,580)
 #root.geometry('400x600')
 root.iconbitmap("./icon.ico")
 
